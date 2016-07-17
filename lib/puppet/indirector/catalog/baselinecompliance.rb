@@ -1,5 +1,6 @@
 require 'puppet/node'
 require 'puppet/resource/catalog'
+require 'puppet/parser/baseline_compiler'
 require 'puppet/indirector/catalog/compiler'
 
 class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog::Compiler
@@ -8,16 +9,27 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
     catalog = super(request)
     baseline_node = node_from_request(request)
 
-    baseline_modulepath = Puppet.settings.value(:modulepath, :baseline)
-    baseline_manifestdir = Puppet.settings.value(:manifest, :baseline)
-    baseline_environment = Puppet::Node::Environment.create(:baseline, [baseline_modulepath], baseline_manifestdir)
-    baseline_node.environment = baseline_environment
-    baseline_node.classes = Hash.new
+    catalog_classes = catalog.resources.find_all { |r| r.type == 'Class' }
 
+    # Set up a node resource with the baseline environment rather than whatever the classification
+    # process came up with.
+    baseline_modulepath = Puppet.settings.value(:modulepath, :baseline).split(':')
+    baseline_modulepath.delete('/opt/puppetlabs/puppet/modules')
+    baseline_manifestdir = Puppet.settings.value(:manifest, :baseline)
+    baseline_environment = Puppet::Node::Environment.create(:baseline, baseline_modulepath, baseline_manifestdir)
+    baseline_node.environment = baseline_environment
+
+    # Figure out which classes in the mainline catalog have baseline equivilants.
+    # Add those classes to the node for baseline compilation.
+    baseline_parser = Puppet::Parser::BaselineCompiler.new(baseline_node)
+    baseline_node.classes = baseline_parser.find_baseline_classes(catalog_classes)
+
+    # Modify the request to contain our modified node and environment
     baseline_request = request
     baseline_request.options[:use_node] = baseline_node
     baseline_request.environment = baseline_environment
 
+    # Compile the baseline catalog
     baseline_catalog = super(baseline_request)
 
     baseline_catalog.resources.each do |baseline_resource|

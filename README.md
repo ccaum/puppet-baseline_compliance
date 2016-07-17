@@ -31,6 +31,25 @@ the environment assigned to the node.
 Create a new environment called `baseline`. This environment can be managed
 with r10k just like any other environment you already manage. 
 
+### Creating baseline modules
+
+For each class that is part of a node's main catalog, the baseline catalog
+compiler will look for an equivilant in the `baseline` environment. If one is
+found, it will be added for compilation as part of the baseline catalog.
+
+Therefor, if you want to have a baseline Apache configuration, just create an
+**apache** module with an **apache** class, add it to the `baseline`
+environment, and include any base resources you want to enforce in the apache
+class. If the node has Class['apache'] in its catalog, your baseline
+Class['apache'] will automatically be added to the baseline catalog.
+
+Note, baseline classes **do not** support class parameters.  One important
+point of using the baseline catalog compiler is any module should be able to be
+used as part of the mainline catalog. Since we cannot gaurantee class
+parameters will match between the main module used and the baseline module,
+it's far better to just not use parameters at all.  Hiera, however, is still
+available for parameter data bindings.
+
 ### Monitoring compliance enforcement & overwites
 
 Below are the scenarios the baselinecompiler catalog terminus will recognize
