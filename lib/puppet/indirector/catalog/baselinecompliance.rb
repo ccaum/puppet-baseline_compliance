@@ -1,9 +1,18 @@
 require 'puppet/node'
+require 'puppet/transaction/baselinereport'
 require 'puppet/resource/catalog'
 require 'puppet/parser/baseline_compiler'
 require 'puppet/indirector/catalog/compiler'
 
 class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog::Compiler
+  def baseline_datadir
+    baseline_datadir = File.join(Puppet.settings[:client_datadir], 'baseline')
+    unless File.exists?(baseline_datadir)
+      Dir.mkdir baseline_datadir
+    end
+
+    baseline_datadir
+  end
 
   def find(request)
     # Compile the mainline catalog
@@ -28,9 +37,12 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
     baseline_request = request
     baseline_request.options[:use_node] = baseline_node
     baseline_request.environment = baseline_environment
+    baseline_request.key = 'baseline' # This is important when saving the report
 
     # Compile the baseline catalog
     baseline_catalog = super(baseline_request)
+
+    baseline_report = Puppet::Transaction::Baselinereport.new(baseline_node)
 
     baseline_catalog.resources.each do |baseline_resource|
       # If a resource exists in the baseline catalog, but not the mainline catalog, add it.
@@ -43,7 +55,7 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
         # the baseline value with the mainline.
         catalog_resource.each do |catalog_parameter|
           if baseline_resource.include?(catalog_parameter) and (baseline_resource[catalog_parameter] != catalog_resource[catalog_parameter])
-            Puppet.warning "Resource #{catalog_resource}'s parameter '#{catalog_parameter}' value of '#{catalog_resource[catalog_parameter]}' is overwriting baseline value of '#{baseline_resource[catalog_parameter]}'"
+            baseline_report.parameter_overwritten(baseline_resource, catalog_parameter, baseline_resource[catalog_parameter], catalog_resource[catalog_parameter])
           end
         end
 
@@ -51,16 +63,19 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
         # that the maineline resource doesn't, add the baseline parameters to the mainline resource.
         baseline_resource.each do |baseline_parameter|
           unless catalog_resource.include?(baseline_parameter)
-            Puppet.info "Adding baseline parameter '#{baseline_parameter}' with value '#{baseline_resource[baseline_parameter]}' to resource #{baseline_resource}"
+            baseline_report.parameter_added(baseline_resource, baseline_parameter, baseline_resource[baseline_parameter])
             catalog_resource[baseline_parameter] = baseline_resource[baseline_parameter]
           end
         end
         
       else
-        Puppet.info "Adding baseline #{baseline_resource} resource to catalog"
+        baseline_report.resource_added(baseline_resource)
         catalog.add_resource baseline_resource
       end
     end
+
+    # Save the baseline compilation report
+    Puppet::Transaction::Baselinereport.indirection.save(baseline_report)
 
     catalog
   end
