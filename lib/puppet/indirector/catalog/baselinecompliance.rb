@@ -6,10 +6,9 @@ require 'puppet/indirector/catalog/compiler'
 class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog::Compiler
 
   def find(request)
+    # Compile the mainline catalog
     catalog = super(request)
     baseline_node = node_from_request(request)
-
-    catalog_classes = catalog.resources.find_all { |r| r.type == 'Class' }
 
     # Set up a node resource with the baseline environment rather than whatever the classification
     # process came up with.
@@ -21,6 +20,7 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
 
     # Figure out which classes in the mainline catalog have baseline equivilants.
     # Add those classes to the node for baseline compilation.
+    catalog_classes = catalog.resources.find_all { |r| r.type == 'Class' }
     baseline_parser = Puppet::Parser::BaselineCompiler.new(baseline_node)
     baseline_node.classes = baseline_parser.find_baseline_classes(catalog_classes)
 
