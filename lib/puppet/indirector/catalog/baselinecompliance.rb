@@ -33,16 +33,22 @@ class Puppet::Resource::Catalog::Baselinecompliance < Puppet::Resource::Catalog:
     baseline_catalog = super(baseline_request)
 
     baseline_catalog.resources.each do |baseline_resource|
+      # If a resource exists in the baseline catalog, but not the mainline catalog, add it.
+      # If it exists in both, figure out how to merge the parameters.
       if catalog_resource = catalog.resources.find { |r|
           baseline_resource.name == r.name and baseline_resource.type == r.type
         }
 
+        # If a resource exists in both catalogs and both manage a subset of parameters, overwrite 
+        # the baseline value with the mainline.
         catalog_resource.each do |catalog_parameter|
           if baseline_resource.include?(catalog_parameter) and (baseline_resource[catalog_parameter] != catalog_resource[catalog_parameter])
             Puppet.warning "Resource #{catalog_resource}'s parameter '#{catalog_parameter}' value of '#{catalog_resource[catalog_parameter]}' is overwriting baseline value of '#{baseline_resource[catalog_parameter]}'"
           end
         end
 
+        # If a resource exists in both catalogs and the baseline resource manages parameters 
+        # that the maineline resource doesn't, add the baseline parameters to the mainline resource.
         baseline_resource.each do |baseline_parameter|
           unless catalog_resource.include?(baseline_parameter)
             Puppet.info "Adding baseline parameter '#{baseline_parameter}' with value '#{baseline_resource[baseline_parameter]}' to resource #{baseline_resource}"
