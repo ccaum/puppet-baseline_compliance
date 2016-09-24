@@ -6,10 +6,10 @@ class Puppet::Parser::BaselineCompiler < Puppet::Parser::Compiler
   end
 
   def find_baseline_classes(mainline_classes)
+    @node_scope = topscope
     baseline_classes = Hash.new
 
     evaluate_main
-    evaluate_ast_node
 
     mainline_classes.select do |mainline_class|
       # Calling find_hostclass evaluates the entire class. A lazy load would be better
