@@ -5,6 +5,7 @@
 1. [Description](#description)
 2. [Setup - The basics of getting started with baseline_compliance](#setup)
 3. [Usage - Configuration options and additional functionality](#usage)
+4. [Gotchas - Things to watch out for](#usage)
 
 ## Description
 
@@ -79,3 +80,16 @@ Each Puppet agent run will log each scneario if they occur.  For example:
         Info: Adding baseline parameter 'mode' with value '0755' to resource File[/tmp/example]
         Info: Caching catalog for master.vm
         Info: Applying configuration version '1468390945'
+
+## Example Baseline Environment
+
+This control repository has a baseline enviornment that deploys the [os_hardening](https://forge.puppet.com/hardening) set of modules: [http://github.com/ccaum/puppet-control/tree/baseline](http://github.com/ccaum/puppet-control/tree/baseline)
+
+
+## Gotchas
+
+Currently, custom facts in the `baseline` enviornment will not work. When the
+Puppet agent performs its pluginsync at the beginning of the run, it only syncs
+the facts from its assigned environment. Any module you use in the `baseline`
+environment that uses custom facts should have those facts added to the node's
+assigned environment.
